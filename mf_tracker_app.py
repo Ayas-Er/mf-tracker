@@ -460,7 +460,7 @@ def main():
     # ══════════════════════════════════════════
     # ADD FUND
     # ══════════════════════════════════════════
-# Date and NAV fetch OUTSIDE the form so it reacts to date changes
+    # Date and NAV fetch OUTSIDE the form so it reacts to date changes
         c1, c2 = st.columns(2)
         trade_date = c1.date_input("Trade Date", value=date.today())
         use_live   = c1.checkbox("Use Live NAV", value=True)
