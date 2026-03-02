@@ -460,76 +460,11 @@ def main():
     # ══════════════════════════════════════════
     # ADD FUND
     # ══════════════════════════════════════════
-    elif page == "➕ Add Fund":
-        st.header("Add New Fund")
-        tab1, tab2 = st.tabs(["🔍 Search by Name", "🔢 Enter AMFI Code"])
+# Date and NAV fetch OUTSIDE the form so it reacts to date changes
+        c1, c2 = st.columns(2)
+        trade_date = c1.date_input("Trade Date", value=date.today())
+        use_live   = c1.checkbox("Use Live NAV", value=True)
 
-        selected_amfi = None
-
-        with tab1:
-            query = st.text_input("Search fund name", placeholder="e.g. Nippon Mid Cap")
-            if query:
-                results = search_funds(query)
-                if not results.empty and "schemeName" in results.columns:
-                    choice = st.selectbox("Select fund", results["schemeName"].tolist())
-                    if choice:
-                        row = results[results["schemeName"] == choice].iloc[0]
-                        selected_amfi = str(row.get("schemeCode", ""))
-
-        with tab2:
-            manual = st.text_input("AMFI Code", placeholder="e.g. 118668")
-            if manual:
-                selected_amfi = manual
-
-        if selected_amfi:
-            name, nav, nav_date = fetch_nav(selected_amfi)
-            if name:
-                st.success(f"✅ **{name}** | NAV: ₹{nav} ({nav_date})")
-                with st.form("add_fund"):
-                    c1, c2, c3 = st.columns(3)
-                    target_pct      = c1.slider("Target % (sell trigger)", 10, 100, 35) / 100
-                    reinvest_pct    = c2.slider("Reinvest % of sell proceeds", 0, 100, 50) / 100
-                    reinvest_months = c3.slider("Spread reinvestment over N months", 1, 24, 12)
-                    if st.form_submit_button("➕ Add Fund"):
-                        existing = read_sheet(SHEET_FUNDS, FUNDS_COLS)
-                        if not existing.empty and selected_amfi in existing["amfi_code"].values:
-                            st.error("This fund is already added.")
-                        else:
-                            append_row(SHEET_FUNDS, {
-                                "fund_id":         str(uuid.uuid4())[:8],
-                                "amfi_code":       selected_amfi,
-                                "fund_name":       name,
-                                "target_pct":      target_pct,
-                                "reinvest_pct":    reinvest_pct,
-                                "reinvest_months": reinvest_months,
-                                "added_on":        str(date.today()),
-                            }, FUNDS_COLS)
-                            st.success(f"✅ {name} added!")
-                            st.cache_data.clear()
-
-    # ══════════════════════════════════════════
-    # ADD TRADE
-    # ══════════════════════════════════════════
-    elif page == "💰 Add Trade":
-        st.header("Add New Trade (Buy)")
-        funds_df = read_sheet(SHEET_FUNDS, FUNDS_COLS)
-
-        if funds_df.empty:
-            st.warning("Please add a fund first.")
-            return
-
-        fund_map = dict(zip(funds_df["fund_name"], funds_df["fund_id"]))
-
-        with st.form("add_trade"):
-            fund_name_sel = st.selectbox("Select Fund", list(fund_map.keys()))
-            fund_id       = fund_map[fund_name_sel]
-            fund_row      = funds_df[funds_df["fund_id"] == fund_id].iloc[0]
-
-            c1, c2 = st.columns(2)
-            trade_date = c1.date_input("Trade Date", value=date.today())
-            use_live   = c1.checkbox("Use Live NAV", value=True)
-
-        # Always fetch historical NAV for the selected trade date
         _, date_nav, date_nav_date = fetch_nav(fund_row["amfi_code"], for_date=trade_date)
 
         if use_live:
@@ -545,8 +480,9 @@ def main():
                 value=float(date_nav) if date_nav else 0.01,
                 min_value=0.01,
                 step=0.01
-                )
+            )
 
+        with st.form("add_trade"):
             sip_amount      = st.number_input("SIP Amount (from your Bank) ₹", min_value=0.0, step=500.0, value=15000.0)
             reinvest_amount = st.number_input("Reinvested Amount ₹ (0 if fresh SIP)", min_value=0.0, step=100.0, value=0.0)
 
