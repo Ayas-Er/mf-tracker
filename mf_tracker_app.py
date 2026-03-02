@@ -529,23 +529,23 @@ def main():
             trade_date = c1.date_input("Trade Date", value=date.today())
             use_live   = c1.checkbox("Use Live NAV", value=True)
 
-            # Always fetch historical NAV for the selected trade date
-            _, date_nav, date_nav_date = fetch_nav(fund_row["amfi_code"], for_date=trade_date)
+        # Always fetch historical NAV for the selected trade date
+        _, date_nav, date_nav_date = fetch_nav(fund_row["amfi_code"], for_date=trade_date)
 
-            if use_live:
-                if date_nav:
-                    c2.info(f"NAV on {trade_date}: ₹{date_nav} ({date_nav_date})")
-                    nav_val = date_nav
-                else:
-                    c2.warning("NAV not available for this date.")
-                    nav_val = None
+        if use_live:
+            if date_nav:
+                c2.info(f"NAV on {trade_date}: ₹{date_nav} ({date_nav_date})")
+                nav_val = date_nav
             else:
-                nav_val = c2.number_input(
-                    "Enter NAV manually",
-                    value=float(date_nav) if date_nav else 0.01,
-                    min_value=0.01,
-                    step=0.01
-                )
+                c2.warning("NAV not available for this date.")
+                nav_val = None
+        else:
+            nav_val = c2.number_input(
+                "Enter NAV manually",
+                value=float(date_nav) if date_nav else 0.01,
+                min_value=0.01,
+                step=0.01
+            )
 
             sip_amount      = st.number_input("SIP Amount (from your Bank) ₹", min_value=0.0, step=500.0, value=15000.0)
             reinvest_amount = st.number_input("Reinvested Amount ₹ (0 if fresh SIP)", min_value=0.0, step=100.0, value=0.0)
