@@ -545,7 +545,7 @@ def main():
                 value=float(date_nav) if date_nav else 0.01,
                 min_value=0.01,
                 step=0.01
-            )
+                )
 
             sip_amount      = st.number_input("SIP Amount (from your Bank) ₹", min_value=0.0, step=500.0, value=15000.0)
             reinvest_amount = st.number_input("Reinvested Amount ₹ (0 if fresh SIP)", min_value=0.0, step=100.0, value=0.0)
