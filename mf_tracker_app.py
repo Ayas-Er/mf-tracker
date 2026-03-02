@@ -94,13 +94,31 @@ def update_trade_row(trade_id, updates: dict):
 
 # ─── NAV FETCH ───────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
-def fetch_nav(amfi_code):
+def fetch_nav(amfi_code, for_date=None):
     try:
         url  = f"https://api.mfapi.in/mf/{amfi_code}"
         resp = requests.get(url, timeout=10).json()
-        name     = resp["meta"]["scheme_name"]
-        nav      = float(resp["data"][0]["nav"])
-        nav_date = resp["data"][0]["date"]
+        name = resp["meta"]["scheme_name"]
+
+        if for_date:
+            # Find NAV for the given date or nearest previous date
+            nav_data = pd.DataFrame(resp["data"])
+            nav_data["date"] = pd.to_datetime(nav_data["date"], format="%d-%m-%Y")
+            nav_data["nav"]  = nav_data["nav"].astype(float)
+            nav_data = nav_data.sort_values("date")
+
+            target_date = pd.Timestamp(for_date)
+            # Get NAV on or before the trade date (markets may be closed)
+            available = nav_data[nav_data["date"] <= target_date]
+            if available.empty:
+                return name, None, None
+            row      = available.iloc[-1]
+            nav      = row["nav"]
+            nav_date = row["date"].strftime("%d-%m-%Y")
+        else:
+            nav      = float(resp["data"][0]["nav"])
+            nav_date = resp["data"][0]["date"]
+
         return name, nav, nav_date
     except Exception:
         return None, None, None
@@ -511,12 +529,23 @@ def main():
             trade_date = c1.date_input("Trade Date", value=date.today())
             use_live   = c1.checkbox("Use Live NAV", value=True)
 
+            # Always fetch historical NAV for the selected trade date
+            _, date_nav, date_nav_date = fetch_nav(fund_row["amfi_code"], for_date=trade_date)
+
             if use_live:
-                _, live_nav, nav_date = fetch_nav(fund_row["amfi_code"])
-                c2.info(f"Live NAV: ₹{live_nav} ({nav_date})")
-                nav_val = live_nav
+                if date_nav:
+                    c2.info(f"NAV on {trade_date}: ₹{date_nav} ({date_nav_date})")
+                    nav_val = date_nav
+                else:
+                    c2.warning("NAV not available for this date.")
+                    nav_val = None
             else:
-                nav_val = c2.number_input("Enter NAV manually", min_value=0.01, step=0.01)
+                nav_val = c2.number_input(
+                    "Enter NAV manually",
+                    value=float(date_nav) if date_nav else 0.01,
+                    min_value=0.01,
+                    step=0.01
+                )
 
             sip_amount      = st.number_input("SIP Amount (from your Bank) ₹", min_value=0.0, step=500.0, value=15000.0)
             reinvest_amount = st.number_input("Reinvested Amount ₹ (0 if fresh SIP)", min_value=0.0, step=100.0, value=0.0)
